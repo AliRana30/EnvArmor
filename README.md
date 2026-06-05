@@ -17,9 +17,47 @@ EnvArmor stops API keys, credentials, and environment variables from leaking int
 
 ## Architecture
 
-> CLI scanner → pre-commit hook → blocks commit or ships encrypted report to dashboard → Savings Engine calculates financial exposure → Prisma writes to Supabase → dashboard surfaces live metrics.
+```mermaid
+flowchart TD
+    DEV["Developer Machine"]
 
-See the full interactive diagram above.
+    subgraph CLI ["envarmor CLI"]
+        SCAN["Scanner\nRegex + Shannon Entropy"]
+        HOOK["git pre-commit hook"]
+        VAULT_LOCAL["Local AES-256 vault"]
+        AI_GUARD["AI context guard\n.cursorignore · .claudeignore"]
+    end
+
+    subgraph DASHBOARD ["Web Dashboard (Next.js 15)"]
+        API["REST API\n/api/v1"]
+        AUTH["Supabase Auth\nMagic link + GitHub OAuth"]
+        SAVINGS["Savings Engine\nlib/savings-engine.ts"]
+        PRISMA["Prisma ORM"]
+    end
+
+    subgraph DATA ["Data Layer"]
+        SUPABASE["Supabase PostgreSQL\nScanEvent · Project · User"]
+        REDIS["Upstash Redis\nRate limiting · Caching"]
+        NPM["npm registry\nenvarmor-cli v0.1.1"]
+    end
+
+    DEV -->|git commit| HOOK
+    HOOK --> SCAN
+    SCAN -->|secrets found: block| HOOK
+    SCAN -->|metadata report| API
+    SCAN --> AI_GUARD
+    SCAN --> VAULT_LOCAL
+    VAULT_LOCAL -->|encrypted sync| SUPABASE
+
+    API --> AUTH
+    API --> SAVINGS
+    API --> PRISMA
+    SAVINGS --> PRISMA
+    PRISMA --> SUPABASE
+    PRISMA --> REDIS
+
+    DEV -->|npx envarmor init| NPM
+```
 
 ---
 
