@@ -202,6 +202,16 @@ New repos inherit the hook automatically.
 
 ---
 
+## Project Switching & Auto-Provisioning
+
+EnvArmor supports dynamic context switching across both the web dashboard and CLI client:
+
+* **Global Web Switching**: The dashboard header features an active workspace selector. Switching projects automatically transitions your current context (e.g., from the global `/vault` to `/projects/[slug]/vault`). Selecting "All Projects" brings you back to the aggregated global view.
+* **CLI-Driven Override**: You can target specific workspaces dynamically by appending the `-p, --project <slug>` option flag to your `scan`, `push`, or `pull` commands.
+* **Zero-Touch Provisioning**: If you execute a CLI command with a project slug that does not exist on your account, the API automatically provisions the new project workspace dynamically on scan ingestion.
+
+---
+
 ## Why it's built this way
 
 **Local-first scanning.** The scanner runs entirely on your machine. Only lightweight metadata (file name, severity, secret type) goes to the dashboard — never the secret itself.
