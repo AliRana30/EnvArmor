@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserPlan {
+  FREE
+  BASIC
+  PRO
+  TEAM
+}
+
+enum Environment {
+  DEV
+  STAGING
+  PROD
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TeamRole {
+  VIEWER
+  EDITOR
+  ADMIN
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+  EXPIRED
+}
+
+enum SubscriptionPlan {
+  BASIC
+  PRO
+  TEAM
+}
+
+enum PaymentProvider {
+  LEMONSQUEEZY
+  XPAY
+}
+
+model User {
+  id                    String       @id @default(uuid())
+  email                 String       @unique
+  name                  String?
+  avatarUrl             String?
+  plan                  UserPlan     @default(FREE)
+  apiKey                String       @unique @default(dbgenerated("md5(random()::text || clock_timestamp()::text)"))
+  emailOnDetection      Boolean      @default(true)
+  emailWeeklyDigest     Boolean      @default(true)
+  emailRotationReminder Boolean      @default(true)
+  slackWebhookUrl       String?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  projects              Project[]
+  scanEvents            ScanEvent[]
+  teamMemberships       TeamMember[]
+  subscription          Subscription?
+  bypassEvents          BypassEvent[]
+}
+
+model Project {
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  userId      String
+  slug        String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secrets     Secret[]
+  scanEvents  ScanEvent[]
+  teamMembers TeamMember[]
+
+  @@unique([userId, slug])
+}
+
+model Secret {
+  id          String      @id @default(uuid())
+  name        String
+  value       String
+  environment Environment
+  projectId   String
+  version     Int         @default(1)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model ScanEvent {
+  id                 String    @id @default(uuid())
+  userId             String
+  projectId          String
+  secretType         String
+  severity           Severity
+  filePath           String
+  lineNumber         Int
+  blocked            Boolean   @default(false)
+  estimatedCostSaved Float
+  createdAt          DateTime  @default(now())
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project            Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model TeamMember {
+  id        String   @id @default(uuid())
+  projectId String
+  userId    String
+  role      TeamRole
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model Subscription {
+  id                String             @id @default(uuid())
+  userId            String             @unique
+  lemonsqueezyId    String?            @unique
+  xpayTransactionId String?            @unique
+  status            SubscriptionStatus
+  plan              SubscriptionPlan
+  paymentProvider   PaymentProvider    @default(LEMONSQUEEZY)
+  currency          String             @default("USD")
+  amountPaid        Float?
+  currentPeriodEnd  DateTime
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BypassEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  reason    String
+  source    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

@@ -1,0 +1,36 @@
+node_modules
+.next
+out
+dist
+.env
+.env.local
+.env.example
+coverage
+*.log
+.env.*.local
+.env.production
+# IDEs and Editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# OS Specific
+.DS_Store
+Thumbs.db
+# Python Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+# CLI Scan Reports
+envarmor-report.json
+report.json
+*-report.json
+# Local Configuration overrides
+.envarmor
+# Subfolders
+envarmor/dist/
+envarmor/node_modules/

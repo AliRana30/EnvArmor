@@ -1,0 +1,11 @@
+.env*
+*.pem
+*.key
+secrets/
+*.crt
+*.p12
+*.pfx
+vendor/
+**/node_modules/**
+.envarmor
+.envguard

@@ -1,0 +1,36 @@
+{
+  "name": "envarmor-cli",
+  "version": "0.1.1",
+  "description": "Offline-first CLI to scan repositories for exposed secrets",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "bin": {
+    "envarmor": "dist/bin/envarmor.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx bin/envarmor.ts",
+    "prepare": "npm run build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "envarmor-cli": "^0.1.0",
+    "glob": "^11.0.0",
+    "ignore": "^5.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}
