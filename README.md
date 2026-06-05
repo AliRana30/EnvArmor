@@ -1,194 +1,179 @@
-# EnvArmor: Secret Leak Prevention Suite
+# EnvArmor — Secret Leak Prevention Suite
 
-EnvArmor is a comprehensive security suite designed to detect, manage, and protect your environment variables and sensitive credentials. It combines a high-performance, offline-first Command Line Interface (CLI) with a web dashboard, ensuring your credentials never leak into git history, AI context windows, or public repositories.
+EnvArmor stops API keys, credentials, and environment variables from leaking into git history, AI context windows, or public deployments. It runs as two things: a CLI scanner that hooks into `git commit` and blocks pushes before secrets leave your machine, and a web dashboard where you can track scan history, review financial risk projections, and manage encrypted variables without passing `.env` files over Slack.
 
 ---
 
-## The Problem vs. The Solution
+## The Problem vs. The Fix
 
-| The Problem | The EnvArmor Solution |
+| The Problem | How EnvArmor handles it |
 | :--- | :--- |
-| Secrets leaked in `.env` files or git history. | Real-time pre-commit scanning. |
-| Accidental exposure to AI tools (ChatGPT/Claude) via codebases. | AI Context Protection ignore rule generation. |
-| No clarity on which leaked key is most critical/costly. | Financial Risk Estimation metrics. |
-| Teams struggling to sync `.env.local` files securely. | Encrypted Cloud Vault for syncing environments. |
+| Secrets leaked in `.env` files or git history | Pre-commit hook blocks the push before it happens |
+| Codebase ingested by AI tools (Cursor, Copilot, Claude) | Auto-generates `.cursorignore`, `.claudeignore`, `copilot-instructions.md` |
+| No visibility into which leaked key costs the most | Maps detected keys to real abuse cost ranges (e.g. `$200–$5,000`) |
+| Syncing `.env.local` files over Slack or email | AES-256 encrypted vault with cloud sync — no plaintext in transit |
+
+---
+
+## Architecture
+
+> CLI scanner → pre-commit hook → blocks commit or ships encrypted report to dashboard → Savings Engine calculates financial exposure → Prisma writes to Supabase → dashboard surfaces live metrics.
+
+See the full interactive diagram above.
 
 ---
 
 ## Tech Stack
 
 ### Web Dashboard
-- **Framework**: Next.js 15 (App Router)
-- **Authentication**: Supabase Auth
-- **Database**: Prisma ORM + Supabase PostgreSQL
-- **Caching & State**: Upstash Redis
-- **Animations**: Framer Motion
-- **Charts**: Recharts
-- **Styling**: Vanilla CSS / Tailwind CSS
+- **Framework:** Next.js 15 (App Router)
+- **Auth:** Supabase (Magic Links + GitHub OAuth)
+- **Database:** Prisma ORM + Supabase PostgreSQL
+- **Caching:** Upstash Redis
+- **Animations:** Framer Motion
+- **Charts:** Recharts
+- **Styling:** Vanilla CSS + Tailwind
 
-### CLI (Core)
-- **Runtime**: Node.js (TypeScript)
-- **Parsing**: Commander.js
-- **Styling**: Chalk
-- **Detection**: Regex Patterns + Shannon Entropy Analysis + Context Verification
-
----
-
-## Setup and Usage
-
-### Section 1: GitHub Clone & Development Setup (Web Dashboard)
-Use this setup to run the EnvArmor web dashboard and local database sync server.
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/AliRana30/EnvArmor.git
-   cd EnvArmor
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Setup environment variables:
-   ```bash
-   cp .env.example .env
-   ```
-   *(Ensure you fill in your database credentials and Supabase configurations in `.env`)*
-
-4. Run database migrations:
-   ```bash
-   npx prisma migrate dev
-   ```
-
-5. Start the local development server:
-   ```bash
-   npm run dev
-   ```
-   The dashboard will be available at `http://localhost:3000`.
+### CLI
+- **Runtime:** TypeScript + Node.js
+- **Commands:** Commander.js
+- **Output:** Chalk
+- **Detection:** Regex pattern signatures + Shannon Entropy analysis + context verification
+- **Vault:** AES-256 local encryption before cloud sync
 
 ---
 
-### Section 2: CLI Tool Installation & Local Usage
-Use this setup to build and link the CLI locally from the source files.
+## Setup
 
-1. Navigate to the CLI subdirectory:
-   ```bash
-   cd envarmor
-   ```
+### Option 1 — Run the full stack locally (dashboard + CLI)
 
-2. Install dependencies and compile the CLI:
-   ```bash
-   npm install
-   npm run build
-   ```
+**1. Clone and install**
+```bash
+git clone https://github.com/AliRana30/EnvArmor.git
+cd EnvArmor
+npm install
+```
 
-3. Link the package globally so you can use the `envarmor` command anywhere:
-   ```bash
-   npm link
-   ```
+**2. Configure environment**
+```bash
+cp .env.example .env
+# Fill in your Supabase URL, anon key, and database URL
+```
 
-4. Authenticate the CLI with your local server:
-   - Copy your API key from the Web Settings page (`http://localhost:3000/settings`).
-   - Run the login command:
-     ```bash
-     envarmor login --key "YOUR_API_KEY_HERE"
-     ```
-     *(Note: The CLI defaults to the local dashboard `http://localhost:3000/api/v1` for easy local testing. To override, set the `ENVARMOR_API_BASE_URL` environment variable).*
+**3. Run database migrations**
+```bash
+npx prisma migrate dev
+```
 
-5. Run a scan in any repository:
-   ```bash
-   envarmor scan -all
-   ```
+**4. Start the dashboard**
+```bash
+npm run dev
+# Runs at http://localhost:3000
+```
 
----
+**5. Build and link the CLI**
+```bash
+cd envarmor
+npm install
+npm run build
+npm link
+```
 
-### Section 3: NPM Package Integration (Direct Use in New Projects)
-If you want to use EnvArmor directly as an NPM package dependency inside a new project without cloning the dashboard repo:
+**6. Authenticate the CLI**
+- Copy your API key from `http://localhost:3000/settings`
+- Run:
+```bash
+envarmor login --key "YOUR_API_KEY_HERE"
+# Defaults to http://localhost:3000/api/v1
+# Override with ENVARMOR_API_BASE_URL if needed
+```
 
-1. **Install the package**:
-   Once published to npm (or linked locally), run:
-   ```bash
-   npm install envarmor
-   ```
-
-2. **Initialize in your project**:
-   Run the init command inside your project root to automatically generate the pre-commit hook and `.envarmor` config file:
-   ```bash
-   npx envarmor init
-   ```
-
-3. **Programmatic Usage**:
-   You can import the scanner engine directly in your Node.js/TypeScript code:
-   ```typescript
-   import { ScannerEngine } from 'envarmor/src/engine.js';
-   import { RegexDetector, EntropyDetector } from 'envarmor/src/detectors.js';
-
-   const engine = new ScannerEngine({
-     cwd: process.cwd(),
-     detectors: [new RegexDetector(), new EntropyDetector()]
-   });
-
-   const result = await engine.scan();
-   console.log(`Scanned ${result.filesScanned} files. Found ${result.findings.length} secrets.`);
-   ```
-
-4. **Package Executables**:
-   You can invoke scan, AI-protect, or vault commands directly via `npx`:
-   ```bash
-   npx envarmor scan --all
-   npx envarmor protect
-   npx envarmor pull --env development
-   ```
+**7. Scan a repo**
+```bash
+envarmor scan -all
+```
 
 ---
 
-## Command Reference Index
+### Option 2 — Use the published npm package directly
 
-| Command | Option Flags | Description |
+```bash
+npm install envarmor
+npx envarmor init
+```
+
+`init` creates `.envarmor`, `.envarmorignore`, and wires the pre-commit hook automatically.
+
+**Programmatic usage**
+```typescript
+import { ScannerEngine } from 'envarmor/src/engine.js';
+import { RegexDetector, EntropyDetector } from 'envarmor/src/detectors.js';
+
+const engine = new ScannerEngine({
+  cwd: process.cwd(),
+  detectors: [new RegexDetector(), new EntropyDetector()]
+});
+
+const result = await engine.scan();
+console.log(`Scanned ${result.filesScanned} files. Found ${result.findings.length} secrets.`);
+```
+
+**Direct CLI via npx**
+```bash
+npx envarmor scan --all
+npx envarmor protect
+npx envarmor pull --env development
+```
+
+---
+
+## Command Reference
+
+| Command | Flags | What it does |
 | :--- | :--- | :--- |
-| `envarmor init` | None | Installs the Git pre-commit hooks and creates a local project configuration. |
-| `envarmor scan` | `-all` / `--all`<br>`--staged`<br>`--history` | Scans the workspace files for secrets.<br>`-all` (default) scans all files.<br>`--staged` scans files ready for commit.<br>`--history` audits git commits, reflogs, and stashes. |
-| `envarmor login` | `--key <api-key>` | Authenticates your local CLI with your web dashboard account. |
-| `envarmor protect` | None | Generates AI-ignore rule configurations (`.cursorignore`, `.claudeignore`, `.aiexclude`, `.github/copilot-instructions.md`) and updates `.gitignore`. |
-| `envarmor audit-ai` | None | Verifies if active AI developers/extensions are configured to see your secrets. |
-| `envarmor sanitize` | `<text>` | Redacts potential secrets from a string of text. |
-| `envarmor push` | `--env <env>` / `--force` | Uploads local environment variables from `.env.local` to the vault. `--force` overwrites existing remote values. |
-| `envarmor pull` | `--env <env>` / `--output <out>` | Pulls secrets from the vault. Output options: `shell` (prints to stdout) or `file` (writes to `.env`). |
-| `envarmor uninstall` | None | Uninstalls the pre-commit hook and cleans up configuration settings. |
+| `envarmor init` | — | Installs the pre-commit hook and creates local config |
+| `envarmor scan` | `-all` · `--staged` · `--history` · `-p <slug>` | Scans all files, staged files only, or full git history |
+| `envarmor login` | `--key <api-key>` | Links the CLI to your dashboard account |
+| `envarmor protect` | — | Generates `.cursorignore`, `.claudeignore`, `.aiexclude`, and updates `.gitignore` |
+| `envarmor audit-ai` | — | Checks whether active AI extensions can read your secrets |
+| `envarmor sanitize` | `<text>` | Redacts detected secrets from a text string |
+| `envarmor push` | `--env <env>` · `--force` · `-p <slug>` | Uploads `.env.local` variables to the encrypted vault |
+| `envarmor pull` | `--env <env>` · `--output <out>` · `-p <slug>` | Pulls secrets from the vault to shell or file |
+| `envarmor uninstall` | — | Removes the pre-commit hook and cleans local config |
+
+**CI usage**
+```bash
+npx envarmor scan --ci --fail-on-high
+```
+Exits non-zero on `HIGH` or `CRITICAL` findings — drop it into any GitHub Actions workflow.
 
 ---
 
-## Global Git Hooks (Auto-Implementation)
+## Global Git Hook (optional)
 
-By default, `envarmor init` installs a pre-commit hook locally inside the current repository's `.git/hooks/` directory. If you want Git to automatically implement the EnvArmor pre-commit hook globally for all current and future projects on your system, configure Git to use a global hooks template:
+To protect every repository on your machine without running `init` per project:
 
-1. Create a global templates folder:
-   ```bash
-   mkdir -p ~/.git-templates/hooks
-   ```
+```bash
+mkdir -p ~/.git-templates/hooks
+cp .git/hooks/pre-commit ~/.git-templates/hooks/pre-commit
+git config --global init.templatedir '~/.git-templates'
+git config --global core.hooksPath ~/.git-templates/hooks
+```
 
-2. Copy the hook script:
-   Copy the `pre-commit` script generated by `envarmor init` into the newly created global hooks directory:
-   ```bash
-   cp .git/hooks/pre-commit ~/.git-templates/hooks/pre-commit
-   ```
-
-3. Configure Git globally:
-   Tell Git to use this directory as a template for all repositories and resolve hooks from it:
-   ```bash
-   git config --global init.templatedir '~/.git-templates'
-   git config --global core.hooksPath ~/.git-templates/hooks
-   ```
+New repos inherit the hook automatically.
 
 ---
 
-## Advantages
+## Why it's built this way
 
-1. **Local Security**: Key scanning is executed entirely on your machine. Only lightweight metadata reports are dispatched to the dashboard.
-2. **Speed**: High-speed Node/TypeScript scanner completing runs in milliseconds.
-3. **Financial Awareness**: Financial analysis prioritizes remediation efforts based on actual business cost at risk.
-4. **CI/CD Integration**: Optimized logs for automated workflows (`npx envarmor scan --ci --fail-on-high`).
+**Local-first scanning.** The scanner runs entirely on your machine. Only lightweight metadata (file name, severity, secret type) goes to the dashboard — never the secret itself.
 
+**Shannon Entropy + Regex.** Regex catches known key formats (Stripe `sk_live_`, AWS `AKIA`, OpenAI `sk-`). Entropy analysis catches unknown high-randomness strings that pattern-matching misses. Together they cover both structured and unstructured leaks.
 
-<p>Made with ❤️ by Ali Mahmood Rana</p>
+**Financial risk, not just severity labels.** A `CRITICAL` badge doesn't tell you much. Mapping a leaked Stripe key to `$200–$5,000` in potential abuse costs makes the remediation priority obvious.
+
+**Encrypted vault.** Variables encrypt on-device before any network request. The server never sees plaintext.
+
+---
+
+<p>Made with ❤️ by <a href="https://github.com/AliRana30">Ali Mahmood Rana</a></p>
